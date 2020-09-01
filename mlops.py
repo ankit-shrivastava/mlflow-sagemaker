@@ -2,6 +2,7 @@
 import os
 import copy
 import subprocess
+import json
 import boto3
 import mlflow
 import mlflow.sagemaker as mfs
@@ -153,6 +154,29 @@ def get_sagemaker_active_endpoints(region=get_region()):
     return app_endpoints
 
 
+def inferance_sagemaker_endpoint(app_name, input_json, format="pandas-split"):
+    client = boto3.session.Session().client("sagemaker-runtime", region)
+
+    response = client.invoke_endpoint(
+        EndpointName=app_name,
+        Body=input_json,
+        ContentType=f"application/json; format={format}",
+    )
+    preds = response["Body"].read().decode("ascii")
+    preds = json.loads(preds)
+    return preds
+
+
+def get_json_data(file_name):
+    data = None
+    if (os.path.exists(file_name)):
+        with open(file_name, 'r') as f:
+            data = f.read()
+        return json.loads(data)
+    else:
+        print(f"Input file does not exists : {file_name}")
+    return None
+
 def push_image_to_sagemaker(
     repository_name="mlflow-pyfunc",
     image_name="mlflow-pyfunc"
@@ -175,6 +199,7 @@ if __name__=="__main__":
     experiment_id = os.environ['EXPERIMENT_ID']
     run_id = os.environ['RUN_ID']
     bucket = os.environ['BUCKET']
+    input_test_file = os.environ['INPUT_TEST_FILE']
     
     # Verify Model before deploy
     status = check_sagemaker_endpoint_status(app_name=app_name)
@@ -196,7 +221,10 @@ if __name__=="__main__":
 
     if status = "InService":
         # Infer model here
-        print ("TBD")
-        
+        input_json = get_json_data(input_test_file)
+        if input_json:
+            prediction = inferance_sagemaker_endpoint(app_name=app_name, input_json)
+            print(f"Received prediction response: {prediction}")
+
     # Delete model
     destroy_model(app_name=app_name)
