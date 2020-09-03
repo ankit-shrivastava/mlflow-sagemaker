@@ -219,11 +219,11 @@ if __name__=="__main__":
     status = str(check_sagemaker_endpoint_status(app_name=app_name))
     print(f"Model {app_name} Endpoint status is '{status}'")
 
-    if status = "InService":
+    if status is "InService":
         # Infer model here
         input_json = get_json_data(input_test_file)
         if input_json:
-            prediction = inferance_sagemaker_endpoint(app_name=app_name, input_json)
+            prediction = inferance_sagemaker_endpoint(app_name=app_name, input_json=input_json)
             print(f"Received prediction response: {prediction}")
 
     # Delete model
