@@ -96,11 +96,17 @@ def execute_shell(command, wait=True, current_env=True, working_dir=None):
         command, shell=True, stdout=stdout, env=env, cwd=working_dir)
     if wait:
         process.wait()
+        return process.returncode
+    return 0
 
 
 def create_mlflow_base_docker_image(image_name="mlflow-pyfunc"):
     command = f"mlflow sagemaker build-and-push-container --no-push --container {image_name}"
-    execute_shell(command=command)
+    status_code = execute_shell(command=command)
+    if status_code != 0:
+        mgs = f"Failed building the image"
+        print(msg)
+        raise ValueError(msg)
 
 
 def push_mlflow_base_docker_image(image_name="mlflow-pyfunc"):
