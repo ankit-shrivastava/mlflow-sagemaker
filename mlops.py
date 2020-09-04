@@ -211,7 +211,7 @@ def write_prediction_output(file_name, prediction):
 
     if (os.path.exists(base_dir)):
         with open(file_name, 'w') as f:
-            f.write(prediction)
+            f.write(str(prediction))
     else:
         print(
             f"Prediction folder not exist : {file_name}; Not saving the file")
