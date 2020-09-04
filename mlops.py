@@ -179,12 +179,14 @@ def inferance_sagemaker_endpoint(app_name, input_json, format="pandas-split", re
     return preds
 
 
-def get_json_data(file_name):
+def get_test_data(file_name):
     data = None
     if (os.path.exists(file_name)):
         with open(file_name, 'r') as f:
             data = f.read()
-        return json.loads(data)
+        if data:
+            data = data.encode("utf-8")
+        return data
     else:
         print(f"Input file does not exists : {file_name}")
     return None
@@ -202,6 +204,17 @@ def push_image_to_sagemaker(
 
     # Push base docker image to AWS ECR
     push_mlflow_base_docker_image(image_name=image_name)
+
+
+def write_prediction_output(file_name, prediction):
+    base_dir = os.path.dirname(file_name)
+
+    if (os.path.exists(base_dir)):
+        with open(file_name, 'w') as f:
+            f.write(prediction)
+    else:
+        print(
+            f"Prediction folder not exist : {file_name}; Not saving the file")
 
 
 if __name__ == "__main__":
@@ -234,7 +247,7 @@ if __name__ == "__main__":
 
     if "InService" in status:
         # Infer model here
-        input_json = get_json_data(input_test_file)
+        input_json = get_test_data(input_test_file)
         if input_json:
             print(f"********************************")
             print(f"Input test json data received {input_json}")
@@ -242,12 +255,17 @@ if __name__ == "__main__":
             prediction = inferance_sagemaker_endpoint(
                 app_name=app_name, input_json=input_json)
             print(f"Received prediction response: {prediction}")
+
+            base_dir = os.path.dirname(input_test_file)
+            pred_file = os.path.join(base_dir, f"inference-{app_name}.pred")
+            write_prediction_output(pred_file, prediction)
         else:
             msg = f"Failed to get test json data. Received str({input_json})"
             print(msg)
     else:
         msg = f"AWS Sagemaker endpoint is InService. Current status is {status}"
         print(msg)
+        raise ValueError(msg)
 
     # Delete model
     destroy_model(app_name=app_name)
