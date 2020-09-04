@@ -166,13 +166,13 @@ def get_sagemaker_active_endpoints(region=get_region()):
     return app_endpoints
 
 
-def inferance_sagemaker_endpoint(app_name, input_json, format="pandas-split"):
+def inferance_sagemaker_endpoint(app_name, input_json, format="pandas-split", region=get_region()):
     client = boto3.session.Session().client("sagemaker-runtime", region)
 
     response = client.invoke_endpoint(
         EndpointName=app_name,
         Body=input_json,
-        ContentType=f"application/json; format={format}",
+        ContentType='application/json; format=pandas-split',
     )
     preds = response["Body"].read().decode("ascii")
     preds = json.loads(preds)
@@ -232,13 +232,22 @@ if __name__ == "__main__":
     status = str(check_sagemaker_endpoint_status(app_name=app_name))
     print(f"Model {app_name} Endpoint status is '{status}'")
 
-    if status is "InService":
+    if "InService" in status:
         # Infer model here
         input_json = get_json_data(input_test_file)
         if input_json:
+            print(f"********************************")
+            print(f"Input test json data received {input_json}")
+            print(f"********************************")
             prediction = inferance_sagemaker_endpoint(
                 app_name=app_name, input_json=input_json)
             print(f"Received prediction response: {prediction}")
+        else:
+            msg = f"Failed to get test json data. Received str({input_json})"
+            print(msg)
+    else:
+        msg = f"AWS Sagemaker endpoint is InService. Current status is {status}"
+        print(msg)
 
     # Delete model
     destroy_model(app_name=app_name)
