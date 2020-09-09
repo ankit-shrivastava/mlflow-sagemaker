@@ -6,6 +6,7 @@ import json
 import boto3
 import mlflow
 import mlflow.sagemaker as mfs
+import datetime
 
 
 def get_account_id():
@@ -121,6 +122,56 @@ def get_sagemager_execution_roler_arn(execution_role_name="mlflow_sagemaker"):
     return execution_role_arn
 
 
+def convert_to_date_time(mlflow_epoc):
+    dt = datetime.datetime.fromtimestamp(mlflow_epoc / 1000)
+    date = f'{dt:%Y-%m-%d}'
+    time = f'{dt:%H:%M:%S%z}'
+    return date, time
+
+
+def get_mlflow_model_details(run_id, tracking_uri):
+    run_info = {}
+    client = mlflow.tracking.MlflowClient(tracking_uri=tracking_uri)
+
+    # Get run from run ID of MlFlow model
+    model_run = client.get_run(run_id)
+
+    experiment_id = model_run.info.experiment_id
+    run_info["experiment_id"] = experiment_id
+    run_info["life_cycle_stage"] = model_run.info.lifecycle_stage
+    run_info["status"] = model_run.info.status
+    run_info["artifact_uri"] = model_run.info.artifact_uri
+
+    start_time = model_run.info.start_time
+    end_time = model_run.info.end_time
+
+    if start_time:
+        start_date, start_time = convert_to_date_time(mlflow_epoc=start_time)
+        run_info["start_date"] = start_date
+        run_info["start_time"] = start_time
+
+    if end_time:
+        end_date, end_time = convert_to_date_time(mlflow_epoc=end_time)
+        run_info["end_date"] = end_date
+        run_info["end_time"] = end_time
+
+    run_info["accuracy_score"] = model_run.data.metrics['accuracy score']
+    run_info["average_precision"] = model_run.data.metrics['average precision']
+    run_info["f1_score"] = model_run.data.metrics['f1-score']
+
+    git_sha = model_run.data.tags['mlflow.source.git.commit']
+    run_info["git_sha"] = git_sha
+    if git_sha:
+        run_info["git_sha"] = git_sha[:8]
+
+    # Get experiment from experiment id
+    experiment = client.get_experiment(experiment_id=experiment_id)
+
+    run_info["experiment_name"] = experiment.name
+
+    return run_info
+
+
 def deploy_model(
     app_name,
     run_id,
@@ -139,21 +190,20 @@ def deploy_model(
         print(msg)
         raise ValueError(msg)
 
-    client = mlflow.tracking.MlflowClient(tracking_uri=tracking_uri)
-    model_run = client.get_run(run_id)
-#    if not artifact_root:
-#         artifact_root = f"s3://{bucket}/prod/mlflow"
+    run_info = get_mlflow_model_details(run_id, tracking_uri)
 
     image_ecr_url = get_ecr_url(region=region)
     execution_role_arn = get_sagemager_execution_roler_arn(execution_role_name)
-    # model_uri = f"{artifact_root}/{experiment_id}/{run_id}/artifacts/model"
-    model_uri = model_run.info.artifact_uri + "/model"
+    model_uri = run_info["artifact_uri"] + "/model"
 
     print(
         f"Model URI is '{model_uri}' for runid '{run_id}' of MlFLow server '{tracking_uri}'")
 
     mfs.deploy(app_name=app_name, execution_role_arn=execution_role_arn, bucket=bucket, model_uri=model_uri, image_url=image_ecr_url,
                region_name=region, mode=sagemaker_model_mode, instance_type=sagemaker_instance_type, instance_count=sagemaker_instance_count)
+
+    print("Model is deployed successfuly on AWS Sagemaker")
+    print(f"Model information =>\n{run_info}")
 
 
 def destroy_model(app_name, region=get_region()):
