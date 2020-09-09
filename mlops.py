@@ -202,6 +202,7 @@ def deploy_model(
     mfs.deploy(app_name=app_name, execution_role_arn=execution_role_arn, bucket=bucket, model_uri=model_uri, image_url=image_ecr_url,
                region_name=region, mode=sagemaker_model_mode, instance_type=sagemaker_instance_type, instance_count=sagemaker_instance_count)
 
+    run_info['end_point'] = app_name
     print("Model is deployed successfuly on AWS Sagemaker")
     print(f"Model information =>\n{run_info}")
 
