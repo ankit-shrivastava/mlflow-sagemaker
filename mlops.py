@@ -147,7 +147,7 @@ def deploy_model(
     image_ecr_url = get_ecr_url(region=region)
     execution_role_arn = get_sagemager_execution_roler_arn(execution_role_name)
     # model_uri = f"{artifact_root}/{experiment_id}/{run_id}/artifacts/model"
-    model_uri = model_run.info.artifact_uri
+    model_uri = model_run.info.artifact_uri + "/model"
 
     print(
         f"Model URI is '{model_uri}' for runid '{run_id}' of MlFLow server '{tracking_uri}'")
