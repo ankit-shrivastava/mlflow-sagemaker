@@ -15,7 +15,8 @@ def get_account_id():
         account_id = caller_id['Account']
         return account_id
     except Exception as e:
-        print("Failed to get account id from assume role")
+        print(f"Failed to get account id from assume role")
+        print(e)
         return None
 
 
@@ -25,7 +26,8 @@ def get_region():
         region = session.region_name or 'us-east-1'
         return region
     except Exception as e:
-        print("Failed to get current region from server")
+        print(f"Failed to get current region from server")
+        print(e)
         return None
 
 
@@ -121,15 +123,14 @@ def get_sagemager_execution_roler_arn(execution_role_name="mlflow_sagemaker"):
 
 def deploy_model(
     app_name,
-    experiment_id,
     run_id,
     bucket,
+    tracking_uri,
     region=get_region(),
     execution_role_name="mlflow_sagemaker",
     sagemaker_instance_type=mfs.DEFAULT_SAGEMAKER_INSTANCE_TYPE,
     sagemaker_instance_count=mfs.DEFAULT_SAGEMAKER_INSTANCE_COUNT,
-    sagemaker_model_mode=mfs.DEPLOYMENT_MODE_CREATE,
-    artifact_root=None
+    sagemaker_model_mode=mfs.DEPLOYMENT_MODE_CREATE
 ):
     # Verify Model before deploy
     status = check_sagemaker_endpoint_status(app_name=app_name)
@@ -138,12 +139,18 @@ def deploy_model(
         print(msg)
         raise ValueError(msg)
 
-    if not artifact_root:
-        artifact_root = f"s3://{bucket}/prod/mlflow"
+    client = mlflow.tracking.MlflowClient(tracking_uri=tracking_uri)
+    model_run = client.get_run(run_id)
+#    if not artifact_root:
+#         artifact_root = f"s3://{bucket}/prod/mlflow"
 
     image_ecr_url = get_ecr_url(region=region)
     execution_role_arn = get_sagemager_execution_roler_arn(execution_role_name)
-    model_uri = f"{artifact_root}/{experiment_id}/{run_id}/artifacts/model"
+    # model_uri = f"{artifact_root}/{experiment_id}/{run_id}/artifacts/model"
+    model_uri = model_run.info.artifact_uri
+
+    print(
+        f"Model URI is '{model_uri}' for runid '{run_id}' of MlFLow server '{tracking_uri}'")
 
     mfs.deploy(app_name=app_name, execution_role_arn=execution_role_arn, bucket=bucket, model_uri=model_uri, image_url=image_ecr_url,
                region_name=region, mode=sagemaker_model_mode, instance_type=sagemaker_instance_type, instance_count=sagemaker_instance_count)
@@ -222,9 +229,9 @@ if __name__ == "__main__":
     push_image_to_sagemaker()
 
     app_name = os.environ['APP_NAME']
-    experiment_id = os.environ['EXPERIMENT_ID']
     run_id = os.environ['RUN_ID']
     bucket = os.environ['BUCKET']
+    tracking_uri = os.environ['TRACKING_URI']
     input_test_file = os.environ['INPUT_TEST_FILE']
 
     # Verify Model before deploy
@@ -237,9 +244,9 @@ if __name__ == "__main__":
     # Deploy model
     deploy_model(
         app_name=app_name,
-        experiment_id=experiment_id,
         run_id=run_id,
-        bucket=bucket)
+        bucket=bucket,
+        tracking_uri=tracking_uri)
 
     # Verify Model status
     status = str(check_sagemaker_endpoint_status(app_name=app_name))
