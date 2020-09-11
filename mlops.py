@@ -125,7 +125,7 @@ def get_sagemager_execution_roler_arn(execution_role_name="mlflow_sagemaker"):
 def convert_to_date_time(mlflow_epoc):
     dt = datetime.datetime.fromtimestamp(mlflow_epoc / 1000)
     date = f'{dt:%Y-%m-%d}'
-    time = f'{dt:%H:%M:%S%z}'
+    time = f'{dt:%H:%M:%S}'
     return date, time
 
 

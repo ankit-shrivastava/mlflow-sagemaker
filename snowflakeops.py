@@ -1,4 +1,3 @@
-
 from snowflake import connector
 
 
