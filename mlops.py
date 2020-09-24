@@ -159,7 +159,7 @@ def get_mlflow_model_details(run_id, tracking_uri):
     run_info["average_precision"] = model_run.data.metrics['average precision']
     run_info["f1_score"] = model_run.data.metrics['f1-score']
 
-    git_sha = model_run.data.tags['mlflow.source.git.commit']
+    git_sha = model_run.data.tags['mlflow.source.git.commit'] if "mlflow.source.git.commit" in model_run.data.tags else None
     run_info["git_sha"] = git_sha
     if git_sha:
         run_info["git_sha"] = git_sha[:8]
